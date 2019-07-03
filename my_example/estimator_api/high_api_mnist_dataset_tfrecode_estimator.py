@@ -21,8 +21,8 @@ tf.app.flags.DEFINE_string("EXPORT_NAME","mnist",'export name')
 tf.app.flags.DEFINE_string("EVAL_NAME","mnist",'eval name')
 tf.app.flags.DEFINE_string("MODEL_DIR","./output",'output dir folder')
 
-tf.app.flags.DEFINE_integer("MAX_STEPS",2000,'train max steps')
-tf.app.flags.DEFINE_integer("TRAIN_BATCH_SIZE",100,'tain batch size')
+tf.app.flags.DEFINE_integer("MAX_STEPS",200,'train max steps')
+tf.app.flags.DEFINE_integer("TRAIN_BATCH_SIZE",200,'tain batch size')
 tf.app.flags.DEFINE_integer("EVAL_STEPS",1000,'eval steps')
 tf.app.flags.DEFINE_integer("EVAL_BATCH_SIZE",100,'eval batch size')
 
@@ -49,6 +49,7 @@ def input_fn(filenames, num_epochs=None, shuffle=True, skip_header_lines=0, batc
 	dataset = dataset.map(read_and_decode)
 	iterator = dataset.repeat().batch(batch_size).make_one_shot_iterator()
 	image, label = iterator.get_next()
+	#return {'x':image},label
 	return image,label
 
 def train_input():
@@ -127,8 +128,6 @@ def cnn_model_fn(features, labels, mode):
 		# `logging_hook`.
 		"probabilities": tf.nn.softmax(logits, name="softmax_tensor")
 	}
-	#train_accuracy_op = {"train_accuracy":tf.metrics.accuracy(labels=labels, predictions=tf.argmax(logits, axis=1))} 
-	train_accuracy_op = tf.reduce_mean(tf.cast(tf.equal(predictions["classes"], labels), tf.float32),name="run_train_accuracy")
 
 	if mode == tf.estimator.ModeKeys.PREDICT:
 		return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
@@ -136,13 +135,16 @@ def cnn_model_fn(features, labels, mode):
 	# Calculate Loss (for both TRAIN and EVAL modes)
 	loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)#oneshot , number_lable
 
+	"""用于hook的train_accuracy_op,对训练打印的精度，要放在mode=tf.estimator.ModeKeys.PREDICT后面,因为在最后保存模型时候，调用的是self._model_fn(features=features, **kwargs)
+		即这时候只有features，没有labels，而这时候return在mode=tf.estimator.ModeKeys.PREDICT这个条件"""
+	train_accuracy_op = tf.reduce_mean(tf.cast(tf.equal(predictions["classes"], labels), tf.float32),name="run_train_accuracy")
+
   # Configure the Training Op (for TRAIN mode)
 	if mode == tf.estimator.ModeKeys.TRAIN:
 		optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
 		train_op = optimizer.minimize(
 			loss=loss,
 			global_step=tf.train.get_global_step())
-	#	return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op, eval_metric_ops = train_accuracy_op)
 		return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)
 
   # Add evaluation metrics (for EVAL mode)
@@ -195,14 +197,24 @@ def _get_session_config_from_env_var():
 #		features, {'example_proto': example_bytestring})
 
 # [START serving-function]
-#def json_serving_input_fn():
-#	"""Build the serving inputs."""
-#	inputs = {}
-#	for feat in featurizer.INPUT_COLUMNS:
-#		inputs[feat.name] = tf.placeholder(shape=[None], dtype=feat.dtype)
-#
-#	return tf.estimator.export.ServingInputReceiver(inputs, inputs)
+"""tf.estimator.export.ServingInputReceiver(features, receiver_tensors),这里features指的就是model_fn的形式，
+也就是input_fn最终输出的(features,labels)，要跟这里一致,而receiver_tensors,是指外接给tensorflow的形式。
+即:
+features是模型的格式
+receiver_tensors是外接给程序格式
+receiver_tensors->features这个过程就是这个函数在做，即json_serving_input_fn，或者注释csv_serving_input_fn,
+example_serving_input_fn这些函数做的事情。
+"""
+def json_serving_input_fn():
+	"""Build the serving inputs."""
+	#inputs = {}
+	x = tf.placeholder(tf.float32, shape=[None,28,28,1])
+	#inputs['x'] = x
+	#return tf.estimator.export.ServingInputReceiver(x,x)
 
+	return tf.estimator.export.TensorServingInputReceiver(x,x)
+	"""https://github.com/tensorflow/tensorflow/issues/11674,关于要是我datase没有以字典形式输入，这边会默认是{feature:x}会出错"""
+	"""这时候要用TensorServingInputReceiver,这个可以接受单个tensor，而不用以字典形式"""
 
 def main(unused_argv):
 	"""hook时候不能用metric的tensor，因为变量没有局部初始化"""
@@ -213,12 +225,15 @@ def main(unused_argv):
 	train_spec = tf.estimator.TrainSpec(train_input, max_steps=FLAGS.MAX_STEPS, hooks=[logging_hook])
 
 	#exporter = tf.estimator.FinalExporter('mnist', SERVING_FUNCTIONS['JSON'])
-	eval_spec = tf.estimator.EvalSpec(eval_input, steps=FLAGS.EVAL_STEPS, name=FLAGS.EVAL_NAME)
+	exporter = tf.estimator.FinalExporter('mnist', json_serving_input_fn)
+	"""EvalSpec有个设置第一次验证的，start_delay_secs，如果没有设置，第一次要存checkpint时会进行验证，接着训练完毕结束又会再一次进行验证，在这个期间，EvalSpec有个设置throttle_secs，默认是600秒，即在接下来的步骤小于600秒不会再验证，直到训练完毕才会再验证。"""
+	eval_spec = tf.estimator.EvalSpec(eval_input, steps=FLAGS.EVAL_STEPS, name=FLAGS.EVAL_NAME,exporters=[exporter])
 	#run_config = tf.estimator.RunConfig(session_config=_get_session_config_from_env_var(),save_checkpoints_steps=100,keep_checkpoint_max=5)
-	"""第一次要存checkpint时会进行验证，接着训练完毕结束又会再一次进行验证，save_checkpoints_steps和save_checkpoints_secs不能同时设置，如果save_checkpoints_steps和save_checkpoints_secs都不设置
-	   save_checkpoints_secs=600，也就是600秒后进行保存一个checkpoint，并且会验证，如果程序大于600秒，就会最后结束保存checpoint时候再验证一次，共两次，如果小于600秒会发现只有一次验证"""
+	"""如果save_checkpoints_steps和save_checkpoints_secs不能同时设置，如果save_checkpoints_steps和save_checkpoints_secs都不设设置,save_checkpoints_secs=600，也就是600秒后进行保存一个checkpoint，并且会验证，如果程序大于600秒，就会最后结束保存checpoint时候再验证一次，共两次，如果小于600秒会发现只有一次验证"""
 	run_config = tf.estimator.RunConfig(session_config=_get_session_config_from_env_var(),save_checkpoints_steps=100)
 	run_config = run_config.replace(model_dir=FLAGS.MODEL_DIR)
+	"""也就是说程序第一次存checkpoint会验证，还有最后一步会验证，中间的验证是由EvalSpec的throttle_secs决定的"""
+
 
 	mnist_classifier = tf.estimator.Estimator(
 		model_fn=cnn_model_fn, config=run_config)
