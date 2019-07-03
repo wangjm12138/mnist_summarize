@@ -41,9 +41,9 @@ import gzip
 from PIL import Image
 from tqdm import tqdm
 import tensorflow as tf
-import matplotlib as mpl
-mpl.use('Agg')
-from matplotlib import pyplot
+#import matplotlib as mpl
+#mpl.use('Agg')
+#from matplotlib import pyplot
 
 host = "http://yann.lecun.com/exdb/mnist"
 ## 训练集文件
