@@ -49,8 +49,8 @@ def input_fn(filenames, num_epochs=None, shuffle=True, skip_header_lines=0, batc
 	dataset = dataset.map(read_and_decode)
 	iterator = dataset.repeat().batch(batch_size).make_one_shot_iterator()
 	image, label = iterator.get_next()
-	#return {'x':image},label
-	return image,label
+	return {'x':image},label
+	#return image,label
 
 def train_input():
 	return input_fn(FLAGS.TRAIN_DATA,batch_size=FLAGS.TRAIN_BATCH_SIZE)
@@ -63,7 +63,7 @@ def cnn_model_fn(features, labels, mode):
 	# Input Layer
 	# Reshape X to 4-D tensor: [batch_size, width, height, channels]
 	# MNIST images are 28x28 pixels, and have one color channel
-	input_layer = tf.reshape(features, [-1, 28, 28, 1])
+	input_layer = tf.reshape(features['x'], [-1, 28, 28, 1])
 	
 	# Convolutional Layer #1
 	# Computes 32 features using a 5x5 filter with ReLU activation.
@@ -207,12 +207,12 @@ example_serving_input_fn这些函数做的事情。
 """
 def json_serving_input_fn():
 	"""Build the serving inputs."""
-	#inputs = {}
+	inputs = {}
 	x = tf.placeholder(tf.float32, shape=[None,28,28,1])
-	#inputs['x'] = x
-	#return tf.estimator.export.ServingInputReceiver(x,x)
+	inputs['x'] = x
+	return tf.estimator.export.ServingInputReceiver(inputs,inputs)
 
-	return tf.estimator.export.TensorServingInputReceiver(x,x)
+	#return tf.estimator.export.TensorServingInputReceiver(x,x)
 	"""https://github.com/tensorflow/tensorflow/issues/11674,关于要是我datase没有以字典形式输入，这边会默认是{feature:x}会出错"""
 	"""这时候要用TensorServingInputReceiver,这个可以接受单个tensor，而不用以字典形式"""
 
