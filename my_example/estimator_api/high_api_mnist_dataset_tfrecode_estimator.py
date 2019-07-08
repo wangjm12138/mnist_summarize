@@ -37,6 +37,7 @@ def read_and_decode(serialized_example):
 	# must same type to origin numpy which to tfrecode #
 	image = tf.decode_raw(features['data'], tf.int8)
 	image = tf.cast(image, tf.float32)
+	#image = tf.reshape(image, [28, 28, 1],name="features_data_ph")
 	image = tf.reshape(image, [28, 28, 1])
 	#image = tf.image.per_image_standardization(image)
 	label = features['label']
@@ -63,6 +64,7 @@ def cnn_model_fn(features, labels, mode):
 	# Input Layer
 	# Reshape X to 4-D tensor: [batch_size, width, height, channels]
 	# MNIST images are 28x28 pixels, and have one color channel
+	print(features['x'].name)
 	input_layer = tf.reshape(features['x'], [-1, 28, 28, 1])
 	
 	# Convolutional Layer #1
@@ -135,8 +137,8 @@ def cnn_model_fn(features, labels, mode):
 	# Calculate Loss (for both TRAIN and EVAL modes)
 	loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)#oneshot , number_lable
 
-	"""用于hook的train_accuracy_op,对训练打印的精度，要放在mode=tf.estimator.ModeKeys.PREDICT后面,因为在最后保存模型时候，调用的是self._model_fn(features=features, **kwargs)
-		即这时候只有features，没有labels，而这时候return在mode=tf.estimator.ModeKeys.PREDICT这个条件"""
+	"""当导出函数用FinalExporter用于hook的train_accuracy_op,对训练打印的精度，要放在mode=tf.estimator.ModeKeys.PREDICT后面,因为在最后保存模型时候，调用的是self._model_fn(features=features, **kwargs)
+		即这时候只有features，没有labels，而这时候return在mode=tf.estimator.ModeKeys.PREDICT这个条件,若果用estimator的export_save_model,可以自己选ModeKeys"""
 	train_accuracy_op = tf.reduce_mean(tf.cast(tf.equal(predictions["classes"], labels), tf.float32),name="run_train_accuracy")
 
   # Configure the Training Op (for TRAIN mode)
@@ -225,9 +227,10 @@ def main(unused_argv):
 	train_spec = tf.estimator.TrainSpec(train_input, max_steps=FLAGS.MAX_STEPS, hooks=[logging_hook])
 
 	#exporter = tf.estimator.FinalExporter('mnist', SERVING_FUNCTIONS['JSON'])
-	exporter = tf.estimator.FinalExporter('mnist', json_serving_input_fn)
+	#exporter = tf.estimator.FinalExporter('mnist', json_serving_input_fn)
 	"""EvalSpec有个设置第一次验证的，start_delay_secs，如果没有设置，第一次要存checkpint时会进行验证，接着训练完毕结束又会再一次进行验证，在这个期间，EvalSpec有个设置throttle_secs，默认是600秒，即在接下来的步骤小于600秒不会再验证，直到训练完毕才会再验证。"""
-	eval_spec = tf.estimator.EvalSpec(eval_input, steps=FLAGS.EVAL_STEPS, name=FLAGS.EVAL_NAME,exporters=[exporter])
+	#eval_spec = tf.estimator.EvalSpec(eval_input, steps=FLAGS.EVAL_STEPS, name=FLAGS.EVAL_NAME,exporters=[exporter])
+	eval_spec = tf.estimator.EvalSpec(eval_input, steps=FLAGS.EVAL_STEPS, name=FLAGS.EVAL_NAME)
 	#run_config = tf.estimator.RunConfig(session_config=_get_session_config_from_env_var(),save_checkpoints_steps=100,keep_checkpoint_max=5)
 	"""如果save_checkpoints_steps和save_checkpoints_secs不能同时设置，如果save_checkpoints_steps和save_checkpoints_secs都不设设置,save_checkpoints_secs=600，也就是600秒后进行保存一个checkpoint，并且会验证，如果程序大于600秒，就会最后结束保存checpoint时候再验证一次，共两次，如果小于600秒会发现只有一次验证"""
 	run_config = tf.estimator.RunConfig(session_config=_get_session_config_from_env_var(),save_checkpoints_steps=100)
@@ -239,7 +242,8 @@ def main(unused_argv):
 		model_fn=cnn_model_fn, config=run_config)
 
 	tf.estimator.train_and_evaluate(mnist_classifier, train_spec, eval_spec)
-
+	"""saved_model_cli show --dir output/mnist/1562320453/ --all 可以看到模型的全部，包括signature，还有name"""
+	mnist_classifier.export_saved_model(export_dir_base="./output/mnist", serving_input_receiver_fn = json_serving_input_fn)
 
 if __name__ == "__main__":
 	tf.app.run()
