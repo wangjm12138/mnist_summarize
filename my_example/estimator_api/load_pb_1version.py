@@ -39,6 +39,8 @@ with tf.Session() as sess:
 	feature = sess.run([image,label])
 	print(feature[0],feature[1])
 """saved_model_cli show --dir output/mnist/1562320453/ --all 可以看到模型的全部，包括signature，还有name"""
+"""模型需要pb和varible文件夹"""
+"""第一种写法"""
 graph2 = tf.Graph()
 with graph2.as_default():
 	with tf.Session(graph=tf.Graph()) as sess:

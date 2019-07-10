@@ -27,7 +27,7 @@ def read_and_decode(serialized_example):
 	}
 	
 	features = tf.parse_single_example(serialized_example, keys_to_features)
-	image = tf.decode_raw(features['data'], tf.float32)
+	image = tf.decode_raw(features['data'], tf.int8)
 	image = tf.cast(image, tf.float32)
 	image = tf.reshape(image, [28, 28, 1])
 	#image = tf.image.per_image_standardization(image)
@@ -52,6 +52,7 @@ conv1 = tf.layers.conv2d(
 	kernel_size=[5, 5],
 	padding="same",
 	activation=tf.nn.relu)
+print(conv1)
 pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
 conv2 = tf.layers.conv2d(
 	inputs=pool1,
@@ -72,9 +73,10 @@ classes = tf.argmax(logits,axis=1)
 correct_prediction = tf.equal(classes, y)
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+"""用save保存的只有.data(变量的值，没有结构),index,meta(原图，计算图的结构，没有变量值)"""
 saver = tf.train.Saver()
 with tf.Session() as sess:
-	saver.restore(sess,"./output/model.ckpt"+'-'+str(300))
+	saver.restore(sess,"./output/model.ckpt"+'-'+str(100))
 	print("Model restore.")
 	image_p,labels_p= sess.run([image_predict,label_predict])
 	accuracy_v= sess.run(accuracy,feed_dict={x:image_p,y:labels_p})

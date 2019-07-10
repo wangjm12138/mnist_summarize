@@ -54,8 +54,8 @@ iterator_eval = dataset_eval.repeat().batch(FLAGS.EVAL_BATCH_SIZE).make_one_shot
 image_test, label_test = iterator_eval.get_next()
 
 """model"""
-x = tf.placeholder(tf.float32, shape=[None,28,28,1])
-y = tf.placeholder(tf.int64, shape=[None])
+x = tf.placeholder(tf.float32, shape=[None,28,28,1],name="v1")
+y = tf.placeholder(tf.int64, shape=[None],name="v2")
 input_layer = tf.reshape(x, [-1, 28, 28, 1])
 conv1 = tf.layers.conv2d(
 	inputs=input_layer,
@@ -75,7 +75,7 @@ pool2_flat = tf.reshape(pool2, [-1, 7 * 7 * 64])
 dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
 dropout = tf.layers.dropout(inputs=dense, rate=0.4)
 
-logits = tf.layers.dense(inputs=dropout, units=10)
+logits = tf.layers.dense(inputs=dropout, units=10,name="v3")
 
 
 """train accuracy, api = tf.equal + tf.reduce_mean = tf.metrics.accuracy"""
@@ -94,6 +94,9 @@ optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
 train_op = optimizer.minimize(loss=loss)
 
 saver = tf.train.Saver()
+#print(tf.GraphKeys.GLOBAL_VARIABLES)
+#print(tf.global_variables())
+#pdb.set_trace()
 with tf.Session() as sess:
 	sess.run(tf.global_variables_initializer())
 	#if use tf.metrics.accuracy is must have
@@ -109,6 +112,6 @@ with tf.Session() as sess:
 			image_v,labels_v= sess.run([image_test,label_test])
 			accuracy_v= sess.run(accuracy,feed_dict={x:image_v,y:labels_v})
 			print("num:{},Loss:{:4f},train_accuracy:{},test_accuracy:{}".format(i,loss_value,accuracy_w,accuracy_v))
-			#save_path  = saver.save(sess,"./output/model.ckpt",global_step=i)
-			#print("num:%s, model saved in path: %s" % (i,save_path))
+			save_path  = saver.save(sess,"./output/model.ckpt",global_step=i)
+			print("num:%s, model saved in path: %s" % (i,save_path))
 	
