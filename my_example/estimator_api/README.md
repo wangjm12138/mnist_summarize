@@ -14,12 +14,12 @@
 
 - 操作符：满足两两输入，一个输出，比如这种可以写成((1+2)+3)+4…，其中加号这种操作符就满足这种性质，当然按位与也是，但是像a^b这种和减法都不是。
 
-Reduce也包含串行和并行的(Serial implementation of Reduce和Parallel implementation of Reduce)，从字面上看，并行才有意义，节省时间，用图来介绍一下两种。
-！[reduce.png](https://github.com/wangjm12138/mnist_summarize/blob/master/markdown_pic/redece.png?raw=true)
+Reduce也包含串行和并行的(Serial implementation of Reduce和Parallel implementation of Reduce)，从字面上看，并行才有意义，节省时间，用图来介绍一下两种，如图：  
+![reduce.png](https://github.com/wangjm12138/mnist_summarize/blob/master/markdown_pic/redece.png?raw=true)
 
 再来看看什么是allreduce算法，如图：
 
-！[allreduce.png](https://github.com/wangjm12138/mnist_summarize/blob/master/markdown_pic/allreduce.png?raw=true)
+![allreduce.png](https://github.com/wangjm12138/mnist_summarize/blob/master/markdown_pic/allreduce.png?raw=true)
 
 也就是说reduce考虑是一组数组相加所提出的优化算法，allreduce就是对多组的数组进行并行的按下标相加的结果。process1到4就是四个数组，A<sub>1</sub>到A<sub>4</sub>，而最终每个process1到4都要变成B数组，而B数组的元素是对应是A<sub>1</sub>到A<sub>4</sub>对应的下标的之和，公式如下，B数组有4个元素，所以得算4个数组。
 $$
