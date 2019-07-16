@@ -15,8 +15,8 @@
 - 操作符：满足两两输入，一个输出，比如这种可以写成((1+2)+3)+4…，其中加号这种操作符就满足这种性质，当然按位与也是，但是像a^b这种和减法都不是。
 
 Reduce也包含串行和并行的(Serial implementation of Reduce和Parallel implementation of Reduce)，从字面上看，并行才有意义，节省时间，用图来介绍一下两种，如图：  
-![reduce.png](https://github.com/wangjm12138/mnist_summarize/blob/master/markdown_pic/redece.png?raw=true)
-
+![reduce.png](https://github.com/wangjm12138/mnist_summarize/blob/master/markdown_pic/redece.png?raw=true)  
+可以看到并行的reduce的话，相当于二叉树，而深度就是log<sub>2</sub>n，能够把原来n步的计算减少到log<sub>2</sub>n，更详细的可以参考博客里面的，还介绍了Scan和Histogram。
 再来看看什么是allreduce算法，如图：
 
 ![allreduce.png](https://github.com/wangjm12138/mnist_summarize/blob/master/markdown_pic/allreduce.png?raw=true)
@@ -26,4 +26,8 @@ $$
 B_i = A_{1,i}\quad Op\quad A_{2,i} \quad Op \quad ... A_{P,i}
 $$
 在深度学习分布式当中，也是这种情况，每个process可以看成每个GPU，而每个GPU上面有更新了相应自身的梯度，而每个GPU上面的梯度需要互相相加然后取均值，而相加的过程就像allreduce过程。常见的，如果把其中一个GPU当成master，然后其他GPU把梯度发送给master，相加后取完平均再依次分发给其他GPU，但是这样随着分布式GPU数目变多，master的GPU的通信量巨增，会造成网络拥塞，并且也会加重master的计算量(其实这部分跟PS架构很像，我自己本身认为PS架构也好，ring-allreduce也好，其实都是由用到allreduce的过程，只不过PS架构和ring-allreduce不一样在通信方面，至于计算这种累加的过程其实一样的)。所以当前最流行的是ring-allreduce，如图：
-
+![allreduce.png](https://github.com/wangjm12138/mnist_summarize/blob/master/markdown_pic/ring-allreduce1.png?raw=true)  
+![allreduce.png](https://github.com/wangjm12138/mnist_summarize/blob/master/markdown_pic/ring-allreduce2.png?raw=true)  
+![allreduce.png](https://github.com/wangjm12138/mnist_summarize/blob/master/markdown_pic/ring-allreduce3.png?raw=true)  
+![allreduce.png](https://github.com/wangjm12138/mnist_summarize/blob/master/markdown_pic/ring-allreduce4.png?raw=true)  
+最后，每个process之间在循环一次（不计算reduce）就可以将全部reduce后的值发送到每个process上。
