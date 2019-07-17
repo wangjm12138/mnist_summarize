@@ -15,7 +15,7 @@
 - 操作符：满足两两输入，一个输出，比如这种可以写成((1+2)+3)+4…，其中加号这种操作符就满足这种性质，当然按位与也是，但是像a^b这种和减法都不是。
 
 Reduce也包含串行和并行的(Serial implementation of Reduce和Parallel implementation of Reduce)，从字面上看，并行才有意义，节省时间，用图来介绍一下两种，如图：  
-![reduce.png](https://github.com/wangjm12138/mnist_summarize/blob/master/markdown_pic/redece.png?raw=true)  
+![reduce.png](https://github.com/wangjm12138/tensorflow_summarize/blob/master/markdown_pic/reduce.png?raw=true)  
 可以看到并行的reduce的话，相当于二叉树，而深度就是log<sub>2</sub>n，能够把原来n步的计算减少到log<sub>2</sub>n，更详细的可以参考博客里面的，还介绍了Scan和Histogram。
 再来看看什么是allreduce算法，如图：
 
