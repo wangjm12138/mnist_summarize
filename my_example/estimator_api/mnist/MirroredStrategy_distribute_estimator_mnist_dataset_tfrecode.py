@@ -15,8 +15,8 @@ import pdb
 tf.logging.set_verbosity(tf.logging.INFO)
 
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string("TRAIN_DATA","../data/mnist_train.tfrecord",'input data')
-tf.app.flags.DEFINE_string("EVAL_DATA","../data/mnist_validation.tfrecord",'test data')
+tf.app.flags.DEFINE_string("TRAIN_DATA","../../data/mnist_train.tfrecord",'input data')
+tf.app.flags.DEFINE_string("EVAL_DATA","../../data/mnist_validation.tfrecord",'test data')
 tf.app.flags.DEFINE_string("EXPORT_NAME","mnist",'export name')
 tf.app.flags.DEFINE_string("EVAL_NAME","mnist",'eval name')
 tf.app.flags.DEFINE_string("MODEL_DIR","./output",'output dir folder')
